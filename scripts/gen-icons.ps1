@@ -26,6 +26,6 @@ function New-Icon {
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $public = Join-Path $projectRoot "public"
-New-Icon -Size 192 -Path (Join-Path $public "icon-192.png") -Bg "#0a0a0a" -Fg "#f5f5f5"
-New-Icon -Size 512 -Path (Join-Path $public "icon-512.png") -Bg "#0a0a0a" -Fg "#f5f5f5"
+New-Icon -Size 192 -Path (Join-Path $public "icon-192.png") -Bg "#260806" -Fg "#f1ff33"
+New-Icon -Size 512 -Path (Join-Path $public "icon-512.png") -Bg "#260806" -Fg "#f1ff33"
 Write-Host "OK"

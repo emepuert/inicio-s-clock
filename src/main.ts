@@ -174,6 +174,7 @@ function buildUI(root: HTMLElement): void {
       <p class="clock--sub" id="clock-sub"></p>
     </main>
     <section class="controls" aria-label="Contrôles">
+      <div id="controls-panel" class="controls-panel">
       <div class="rate-row">
         <div
           class="speed-scroller"
@@ -202,8 +203,23 @@ function buildUI(root: HTMLElement): void {
       </div>
       <div class="secondary-actions">
         <button type="button" id="btn-wake">Garder l’écran actif</button>
+        <button type="button" class="ghost" id="btn-fs" aria-pressed="false">
+          Plein écran
+        </button>
+      </div>
       </div>
     </section>
+    <button
+      type="button"
+      class="controls-toggle"
+      id="btn-controls-toggle"
+      aria-expanded="true"
+      aria-controls="controls-panel"
+      title="Masquer les réglages"
+    >
+      <span class="sr-only">Afficher ou masquer les réglages</span>
+      <span class="controls-toggle__glyph" aria-hidden="true">···</span>
+    </button>
   `;
 
   const clockEl = root.querySelector<HTMLElement>("#clock")!;
@@ -216,6 +232,7 @@ function buildUI(root: HTMLElement): void {
   const resumeBtn = root.querySelector<HTMLButtonElement>("#btn-resume")!;
   const syncBtn = root.querySelector<HTMLButtonElement>("#btn-sync")!;
   const wakeBtn = root.querySelector<HTMLButtonElement>("#btn-wake")!;
+  const fsBtn = root.querySelector<HTMLButtonElement>("#btn-fs")!;
 
   speedTrack.innerHTML = buildSpeedTrackMarkup();
   rateLabel.textContent = formatSpeedPercent(model.multiplier);
@@ -315,6 +332,38 @@ function buildUI(root: HTMLElement): void {
 
   wakeBtn.addEventListener("click", () => {
     void requestWakeLock();
+  });
+
+  function syncFullscreenButton(): void {
+    const on = document.fullscreenElement !== null;
+    fsBtn.textContent = on ? "Quitter le plein écran" : "Plein écran";
+    fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  fsBtn.addEventListener("click", async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      /* refus ou indisponible */
+    }
+  });
+  document.addEventListener("fullscreenchange", syncFullscreenButton);
+  syncFullscreenButton();
+
+  const controlsPanel = root.querySelector<HTMLElement>("#controls-panel")!;
+  const controlsToggle = root.querySelector<HTMLButtonElement>("#btn-controls-toggle")!;
+  function setControlsPanelVisible(visible: boolean): void {
+    controlsPanel.classList.toggle("controls-panel--hidden", !visible);
+    controlsPanel.setAttribute("aria-hidden", visible ? "false" : "true");
+    controlsToggle.setAttribute("aria-expanded", visible ? "true" : "false");
+    controlsToggle.title = visible ? "Masquer les réglages" : "Afficher les réglages";
+  }
+  controlsToggle.addEventListener("click", () => {
+    const hidden = controlsPanel.classList.contains("controls-panel--hidden");
+    setControlsPanelVisible(hidden);
   });
 
   document.addEventListener("visibilitychange", () => {
