@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 
-/** GitHub Pages projet : https://emepuert.github.io/inicio-s-clock/ */
-export default defineConfig(({ command }) => ({
-  base: command === "build" ? "/inicio-s-clock/" : "/",
-}));
+/** Chemins relatifs : fonctionne sur GitHub Pages (/repo/) sans dépendre du sous-chemin exact */
+export default defineConfig({
+  base: "./",
+});
