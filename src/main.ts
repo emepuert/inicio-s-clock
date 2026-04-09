@@ -9,8 +9,6 @@ interface ClockModel {
   multiplier: number;
 }
 
-let wakeLock: WakeLockSentinel | null = null;
-
 const model: ClockModel = {
   mode: "running",
   virtualAnchorMs: Date.now(),
@@ -150,23 +148,6 @@ function tick(
   );
 }
 
-async function requestWakeLock(): Promise<void> {
-  if (!("wakeLock" in navigator) || !navigator.wakeLock) return;
-  try {
-    wakeLock = await navigator.wakeLock.request("screen");
-    wakeLock.addEventListener("release", () => {
-      wakeLock = null;
-    });
-  } catch {
-    /* refus ou indisponible */
-  }
-}
-
-function releaseWakeLock(): void {
-  void wakeLock?.release();
-  wakeLock = null;
-}
-
 function buildUI(root: HTMLElement): void {
   root.innerHTML = `
     <main class="clock-zone">
@@ -202,7 +183,6 @@ function buildUI(root: HTMLElement): void {
         <button type="button" id="btn-sync">Heure réelle</button>
       </div>
       <div class="secondary-actions">
-        <button type="button" id="btn-wake">Garder l’écran actif</button>
         <button type="button" class="ghost" id="btn-fs" aria-pressed="false">
           Plein écran
         </button>
@@ -231,7 +211,6 @@ function buildUI(root: HTMLElement): void {
   const pauseBtn = root.querySelector<HTMLButtonElement>("#btn-pause")!;
   const resumeBtn = root.querySelector<HTMLButtonElement>("#btn-resume")!;
   const syncBtn = root.querySelector<HTMLButtonElement>("#btn-sync")!;
-  const wakeBtn = root.querySelector<HTMLButtonElement>("#btn-wake")!;
   const fsBtn = root.querySelector<HTMLButtonElement>("#btn-fs")!;
 
   speedTrack.innerHTML = buildSpeedTrackMarkup();
@@ -330,10 +309,7 @@ function buildUI(root: HTMLElement): void {
     syncScrollToMultiplier(model.multiplier);
   });
 
-  wakeBtn.addEventListener("click", () => {
-    void requestWakeLock();
-  });
-
+  /** Chrome Android : plein écran souvent via geste utilisateur ; essai html puis body (bookmarklet classique). */
   function getFullscreenElement(): Element | null {
     return (
       document.fullscreenElement ??
@@ -348,23 +324,41 @@ function buildUI(root: HTMLElement): void {
     window.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }
 
-  async function enterFullscreen(): Promise<void> {
-    const el = document.documentElement;
-    if (el.requestFullscreen) {
-      await el.requestFullscreen();
-      return;
+  async function tryEnterFullscreen(el: HTMLElement): Promise<boolean> {
+    try {
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+        return true;
+      }
+      const wk = el as HTMLElement & { webkitRequestFullscreen?: () => void };
+      if (wk.webkitRequestFullscreen) {
+        wk.webkitRequestFullscreen();
+        return true;
+      }
+    } catch {
+      /* suivant */
     }
-    const wk = el as HTMLElement & { webkitRequestFullscreen?: () => void };
-    wk.webkitRequestFullscreen?.();
+    return false;
+  }
+
+  async function enterFullscreen(): Promise<void> {
+    const order: HTMLElement[] = [document.documentElement, document.body];
+    for (const node of order) {
+      if (await tryEnterFullscreen(node)) return;
+    }
   }
 
   async function exitFullscreen(): Promise<void> {
-    if (document.exitFullscreen) {
-      await document.exitFullscreen();
-      return;
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        return;
+      }
+      const doc = document as Document & { webkitExitFullscreen?: () => void };
+      doc.webkitExitFullscreen?.();
+    } catch {
+      /* refus */
     }
-    const doc = document as Document & { webkitExitFullscreen?: () => void };
-    doc.webkitExitFullscreen?.();
   }
 
   function syncFullscreenButton(): void {
@@ -385,7 +379,7 @@ function buildUI(root: HTMLElement): void {
         await exitFullscreen();
       }
     } catch {
-      /* refus, iOS sans API document, etc. */
+      /* iOS / refus */
     }
     syncFullscreenButton();
   });
@@ -411,7 +405,6 @@ function buildUI(root: HTMLElement): void {
     if (document.visibilityState === "visible" && model.mode === "running") {
       reanchorFromRunning();
     }
-    if (document.visibilityState === "hidden") releaseWakeLock();
   });
 
   cancelAnimationFrame(rafId);
