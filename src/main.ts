@@ -334,23 +334,64 @@ function buildUI(root: HTMLElement): void {
     void requestWakeLock();
   });
 
+  function getFullscreenElement(): Element | null {
+    return (
+      document.fullscreenElement ??
+      (document as Document & { webkitFullscreenElement?: Element | null })
+        .webkitFullscreenElement ??
+      null
+    );
+  }
+
+  function scrollPageToBottom(): void {
+    const el = document.scrollingElement ?? document.documentElement;
+    window.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
+
+  async function enterFullscreen(): Promise<void> {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      await el.requestFullscreen();
+      return;
+    }
+    const wk = el as HTMLElement & { webkitRequestFullscreen?: () => void };
+    wk.webkitRequestFullscreen?.();
+  }
+
+  async function exitFullscreen(): Promise<void> {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen();
+      return;
+    }
+    const doc = document as Document & { webkitExitFullscreen?: () => void };
+    doc.webkitExitFullscreen?.();
+  }
+
   function syncFullscreenButton(): void {
-    const on = document.fullscreenElement !== null;
+    const on = getFullscreenElement() !== null;
     fsBtn.textContent = on ? "Quitter le plein écran" : "Plein écran";
     fsBtn.setAttribute("aria-pressed", on ? "true" : "false");
   }
+
   fsBtn.addEventListener("click", async () => {
     try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
+      if (getFullscreenElement() === null) {
+        scrollPageToBottom();
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        );
+        await enterFullscreen();
       } else {
-        await document.exitFullscreen();
+        await exitFullscreen();
       }
     } catch {
-      /* refus ou indisponible */
+      /* refus, iOS sans API document, etc. */
     }
+    syncFullscreenButton();
   });
+
   document.addEventListener("fullscreenchange", syncFullscreenButton);
+  document.addEventListener("webkitfullscreenchange", syncFullscreenButton);
   syncFullscreenButton();
 
   const controlsPanel = root.querySelector<HTMLElement>("#controls-panel")!;

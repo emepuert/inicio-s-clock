@@ -62,7 +62,10 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 38vh;
-  padding: 16px 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 16px clamp(6px, 3vw, 12px);
 }
 
 .clock {
@@ -75,10 +78,13 @@ body {
   user-select: none;
 }
 
-/* +25 % vs taille précédente ; chasse tabulaire pour limiter le « tremblement » */
+/*
+  Taille pilotée par la largeur d’écran : ~13 caractères pour HH:MM:SS,mmm
+  pour ne pas dépasser (avec marges body / #app).
+*/
 .clock--lg {
   color: #f1ff33;
-  font-size: clamp(3.125rem, 15vw, 5.3125rem);
+  font-size: clamp(1.35rem, calc((100vw - 2.5rem) / 13), 3.35rem);
   font-family:
     "TT Commons",
     "TT Commons Pro",
@@ -89,8 +95,11 @@ body {
     monospace;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  display: inline-block;
-  min-width: 19ch;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: center;
   text-rendering: geometricPrecision;
   contain: layout;
 }
